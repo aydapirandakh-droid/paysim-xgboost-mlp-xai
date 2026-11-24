@@ -1,2 +1,177 @@
-# paysim-xgboost-mlp-xai
-PaySim Fraud Detection using XGBoost, MLP, and Quantitative XAI Evaluation.
+# PaySim Fraud Detection with XGBoost, MLP, and Explainable AI
+
+## Project Overview
+
+This project investigates financial transaction fraud detection using the PaySim synthetic financial dataset.
+
+Two models are explored:
+
+- XGBoost
+- Multi-Layer Perceptron (MLP)
+
+The project also includes feature importance analysis and SHAP-based explainability experiments, with a focus on understanding model decisions and evaluating explanation robustness.
+
+## Dataset
+
+The project uses the PaySim synthetic financial transaction dataset.
+
+- Total transactions: 6,362,620
+- Normal transactions: 6,354,407
+- Fraudulent transactions: 8,213
+- Fraud rate: approximately 0.1291%
+- Original features: 11
+
+The target variable is `isFraud`.
+
+## Data Preparation
+
+The preprocessing workflow includes:
+
+- Removing identifier columns (`nameOrig` and `nameDest`).
+- Removing the rule-based `isFlaggedFraud` feature.
+- One-hot encoding the transaction type.
+- Engineering two balance-related features:
+  - `errorBalanceOrg`
+  - `errorBalanceDest`
+- Sorting transactions by the temporal `step` feature.
+- Applying a chronological 70% / 15% / 15% train-validation-test split.
+- Scaling MLP inputs using StandardScaler fitted only on the training data.
+
+The final feature set contains 12 input features.
+
+## Models
+
+### 1. XGBoost Classifier
+
+A gradient boosting model trained with class-imbalance weighting and histogram-based tree construction.
+
+### 2. Multi-Layer Perceptron (MLP)
+
+A feed-forward neural network implemented with PyTorch.
+
+The network uses:
+- Fully connected layers (64, 32, and 16 hidden units)
+- Batch normalization
+- ReLU activation
+- Dropout
+- Weighted binary cross-entropy loss
+
+The MLP was trained using Adam with early stopping based on validation PR-AUC.
+
+## XGBoost Performance
+
+The notebook reports the following results:
+
+| Metric | Validation | Test |
+|---|---:|---:|
+| PR-AUC | 0.8515 | 0.7529 |
+| ROC-AUC | 0.9854 | 0.9745 |
+| F1-score | 0.8571 | 0.8000 |
+| True Positives | 42 | 38 |
+| False Positives | 1 | 5 |
+| False Negatives | 13 | 14 |
+
+The test set represents later transactions in the chronological split.
+
+**Evaluation note:** The notebook's evaluation function calculates an optimal F1 threshold separately for each evaluated dataset. Therefore, the reported test F1-score is based on a threshold optimized on the test set and should be interpreted cautiously rather than as a strictly validation-calibrated result.
+
+## MLP Training
+
+The MLP was trained for up to 20 epochs.
+
+- Optimizer: Adam
+- Learning rate: 0.001
+- Weight decay: 0.0001
+- Batch size: 4,096
+- Loss function: BCEWithLogitsLoss with positive class weighting
+- Best validation PR-AUC: 0.7896
+
+The notebook does not report final MLP test-set PR-AUC, ROC-AUC, or classification metrics. Therefore, no MLP test performance is claimed here.
+
+## Explainable AI (XAI)
+
+SHAP GradientExplainer was used to analyze the MLP's predictions.
+
+The top features identified by mean absolute SHAP values were:
+
+| Feature | Importance |
+|---|---:|
+| type_CASH_OUT | 1.3326 |
+| errorBalanceOrg | 0.6310 |
+| newbalanceOrig | 0.6282 |
+| type_TRANSFER | 0.6092 |
+| amount | 0.5748 |
+| errorBalanceDest | 0.3722 |
+| step | 0.3508 |
+| oldbalanceOrg | 0.3507 |
+
+These values represent mean absolute SHAP importance in the evaluated sample.
+
+## Quantitative XAI Evaluation
+
+### Fidelity
+
+Feature-removal experiments were conducted to examine how removing highly ranked SHAP features affects the MLP's PR-AUC.
+
+| Feature Removal | Resulting PR-AUC |
+|---|---:|
+| No removal (Baseline) | 0.9862 |
+| type_CASH_OUT | 0.9041 |
+| errorBalanceOrg | 0.5652 |
+| newbalanceOrig | 0.5949 |
+| type_TRANSFER | 0.5013 |
+| amount | 0.1935 |
+| errorBalanceDest | 0.2483 |
+
+The evaluation used a sampled test subset containing up to 500 fraudulent and 4,500 normal transactions.
+
+The results show that removing important features can substantially affect the model's predictive performance.
+
+### Stability
+
+Explanation stability was evaluated by adding small Gaussian noise (ε = 0.01) to a subset of 100 test samples and comparing the original and perturbed SHAP explanations.
+
+| Metric | Result |
+|---|---:|
+| Mean Cosine Similarity | 0.9446 |
+| Mean Spearman Rank Correlation | 0.8878 |
+
+These results indicate the degree of similarity and ranking consistency under the tested input perturbations.
+
+## Technologies
+
+- Python
+- XGBoost
+- PyTorch
+- SHAP
+- Scikit-learn
+- Pandas
+- NumPy
+- Matplotlib
+- Seaborn
+- Google Colab
+
+## Repository Structure
+
+```text
+paysim-xgboost-mlp-xai/
+│
+├── paysim.XGboost.MLP.XAI.ipynb
+└── README.md
+```
+
+## How to Run
+
+1. Open the notebook in Google Colab.
+2. Install the required Python libraries if needed.
+3. Run the notebook cells sequentially.
+4. The PaySim dataset is downloaded using KaggleHub.
+
+## Notes and Limitations
+
+- The dataset is synthetic and does not represent all characteristics of real-world financial transactions.
+- The XGBoost test metrics are reported as generated by the notebook's evaluation function; its test threshold is optimized on the test set.
+- Final MLP test classification metrics are not reported in the notebook.
+- Fidelity and Stability results are specific to the evaluation samples and perturbation settings used in this experiment.
+
+This project is an experimental study of imbalanced financial fraud detection and SHAP-based model explainability.
